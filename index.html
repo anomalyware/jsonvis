@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Visualizer</title>
+    <style>
+        :root {
+            --primary: #4a6fa5;
+            --secondary: #166088;
+            --light: #f5f5f5;
+            --dark: #333;
+            --success: #28a745;
+            --error: #dc3545;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background-color: var(--light);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: var(--primary);
+        }
+        
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .json-input {
+            flex: 1;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .btn {
+            padding: 10px 15px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: var(--secondary);
+        }
+        
+        .sample-btn {
+            background-color: var(--secondary);
+        }
+        
+        .error-message {
+            color: var(--error);
+            margin-top: 10px;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .visualization-container {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 20px;
+            background-color: white;
+            min-height: 400px;
+            overflow: auto;
+        }
+        
+        .json-tree {
+            font-family: monospace;
+        }
+        
+        .json-key {
+            color: #7d3c98;
+            font-weight: bold;
+        }
+        
+        .json-string {
+            color: #2e7d32;
+        }
+        
+        .json-number {
+            color: #0288d1;
+        }
+        
+        .json-boolean {
+            color: #f57c00;
+        }
+        
+        .json-null {
+            color: #d32f2f;
+        }
+        
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .collapsible::before {
+            content: '▼';
+            display: inline-block;
+            margin-right: 5px;
+            transition: transform 0.3s;
+        }
+        
+        .collapsed::before {
+            transform: rotate(-90deg);
+        }
+        
+        .json-child {
+            padding-left: 20px;
+            border-left: 1px dashed #ccc;
+            margin-left: 5px;
+        }
+        
+        .collapsed + .json-child {
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .input-container {
+                flex-direction: column;
+            }
+            
+            .controls {
+                flex-direction: row;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JSON Visualizer</h1>
+            <p>Paste your JSON data below to visualize its structure</p>
+        </header>
+        
+        <main>
+            <section class="input-section">
+                <div class="input-container">
+                    <textarea id="jsonInput" class="json-input" placeholder="Paste your JSON here..."></textarea>
+                    <div class="controls">
+                        <button id="visualizeBtn" class="btn">Visualize</button>
+                        <button id="clearBtn" class="btn">Clear</button>
+                        <button id="sampleBtn" class="btn sample-btn">Load Sample</button>
+                    </div>
+                </div>
+                <div id="errorMessage" class="error-message"></div>
+            </section>
+            
+            <section class="visualization-section">
+                <div id="visualizationContainer" class="visualization-container">
+                    <div class="loading">Visualization will appear here...</div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>JSON Visualizer Tool - A simple way to explore JSON structures</p>
+        </footer>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const jsonInput = document.getElementById('jsonInput');
+            const visualizeBtn = document.getElementById('visualizeBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const sampleBtn = document.getElementById('sampleBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const visualizationContainer = document.getElementById('visualizationContainer');
+            
+            const sampleData = {
+                "name": "JSON Visualizer",
+                "version": 1.0,
+                "features": ["tree view", "syntax highlighting", "collapsible nodes"],
+                "settings": {
+                    "darkMode": false,
+                    "autoExpand": true,
+                    "maxDepth": 10
+                },
+                "examples": [
+                    {
+                        "type": "simple",
+                        "data": {"a": 1, "b": 2}
+                    },
+                    {
+                        "type": "nested",
+                        "data": {"x": {"y": {"z": null}}}
+                    }
+                ],
+                "stats": {
+                    "users": 1000,
+                    "averageRating": 4.7,
+                    "isPopular": true
+                },
+                "nullValue": null
+            };
+            
+            visualizeBtn.addEventListener('click', visualizeJSON);
+            clearBtn.addEventListener('click', clearAll);
+            sampleBtn.addEventListener('click', loadSample);
+            
+            function visualizeJSON() {
+                const jsonString = jsonInput.value.trim();
+                if (!jsonString) {
+                    showError('Please enter JSON data');
+                    return;
+                }
+                
+                try {
+                    const jsonData = JSON.parse(jsonString);
+                    hideError();
+                    renderJSON(jsonData);
+                } catch (error) {
+                    showError('Invalid JSON: ' + error.message);
+                }
+            }
+            
+            function renderJSON(data) {
+                visualizationContainer.innerHTML = '';
+                const tree = document.createElement('div');
+                tree.className = 'json-tree';
+                
+                const content = createJSONTree(data);
+                tree.appendChild(content);
+                visualizationContainer.appendChild(tree);
+                
+                addCollapsibleEvents();
+            }
+            
+            function createJSONTree(data, key = null) {
+                const container = document.createElement('div');
+                
+                if (key !== null) {
+                    const keySpan = document.createElement('span');
+                    keySpan.className = 'json-key';
+                    keySpan.textContent = `"${key}": `;
+                    container.appendChild(keySpan);
+                }
+                
+                if (data === null) {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'json-null';
+                    valueSpan.textContent = 'null';
+                    container.appendChild(valueSpan);
+                } 
+                else if (typeof data === 'object' && !Array.isArray(data)) {
+                    const isCollapsible = Object.keys(data).length > 0;
+                    const openBrace = document.createElement('span');
+                    openBrace.textContent = '{';
+                    if (isCollapsible) {
+                        openBrace.className = 'collapsible';
+                    }
+                    container.appendChild(openBrace);
+                    
+                    if (isCollapsible) {
+                        const childContainer = document.createElement('div');
+                        childContainer.className = 'json-child';
+                        
+                        const keys = Object.keys(data);
+                        keys.forEach((childKey, index) => {
+                            const childElement = createJSONTree(data[childKey], childKey);
+                            childContainer.appendChild(childElement);
+                            
+                            if (index < keys.length - 1) {
+                                const comma = document.createElement('span');
+                                comma.textContent = ',';
+                                childElement.appendChild(comma);
+                            }
+                        });
+                        
+                        container.appendChild(childContainer);
+                    }
+                    
+                    const closeBrace = document.createElement('span');
+                    closeBrace.textContent = '}';
+                    container.appendChild(closeBrace);
+                } 
+                else if (Array.isArray(data)) {
+                    const isCollapsible = data.length > 0;
+                    const openBracket = document.createElement('span');
+                    openBracket.textContent = '[';
+                    if (isCollapsible) {
+                        openBracket.className = 'collapsible';
+                    }
+                    container.appendChild(openBracket);
+                    
+                    if (isCollapsible) {
+                        const childContainer = document.createElement('div');
+                        childContainer.className = 'json-child';
+                        
+                        data.forEach((item, index) => {
+                            const childElement = createJSONTree(item);
+                            childContainer.appendChild(childElement);
+                            
+                            if (index < data.length - 1) {
+                                const comma = document.createElement('span');
+                                comma.textContent = ',';
+                                childElement.appendChild(comma);
+                            }
+                        });
+                        
+                        container.appendChild(childContainer);
+                    }
+                    
+                    const closeBracket = document.createElement('span');
+                    closeBracket.textContent = ']';
+                    container.appendChild(closeBracket);
+                } 
+                else if (typeof data === 'string') {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'json-string';
+                    valueSpan.textContent = `"${data}"`;
+                    container.appendChild(valueSpan);
+                } 
+                else if (typeof data === 'number') {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'json-number';
+                    valueSpan.textContent = data;
+                    container.appendChild(valueSpan);
+                } 
+                else if (typeof data === 'boolean') {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'json-boolean';
+                    valueSpan.textContent = data;
+                    container.appendChild(valueSpan);
+                }
+                
+                return container;
+            }
+            
+            function addCollapsibleEvents() {
+                const collapsibles = document.querySelectorAll('.collapsible');
+                collapsibles.forEach(element => {
+                    element.addEventListener('click', function() {
+                        this.classList.toggle('collapsed');
+                    });
+                });
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+            
+            function hideError() {
+                errorMessage.style.display = 'none';
+            }
+            
+            function clearAll() {
+                jsonInput.value = '';
+                visualizationContainer.innerHTML = '<div class="loading">Visualization will appear here...</div>';
+                hideError();
+            }
+            
+            function loadSample() {
+                jsonInput.value = JSON.stringify(sampleData, null, 2);
+                visualizeJSON();
+            }
+        });
+    </script>
+</body>
+</html>
