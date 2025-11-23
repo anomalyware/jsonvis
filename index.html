@@ -1,4 +1,10 @@
-<title>Multi-Format Data Visualizer</title>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JsonVis</title>
     <style>
         :root {
             --primary: #4a6fa5;
@@ -9,29 +15,779 @@
             --error: #dc3545;
         }
         
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background-color: var(--light);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: var(--primary);
+        }
+        
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .json-input {
+            flex: 1;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
         .format-selector {
             display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 5px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
         }
         
         .format-btn {
-            padding: 8px 16px;
+            padding: 5px 10px;
             background-color: #e0e0e0;
             color: var(--dark);
-            border: 2px solid transparent;
+            border: 1px solid #ccc;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 0.85em;
             transition: all 0.3s;
-        }
-        
-        .format-btn:hover {
-            background-color: #d0d0d0;
         }
         
         .format-btn.active {
             background-color: var(--primary);
             color: white;
-            border-color: var(--secondary);
+            border-color: var(--primary);
         }
+        
+        .format-btn:hover {
+            background-color: var(--secondary);
+            color: white;
+        }
+        
+        .btn {
+            padding: 10px 15px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: var(--secondary);
+        }
+        
+        .sample-btn {
+            background-color: var(--secondary);
+        }
+        
+        .error-message {
+            color: var(--error);
+            margin-top: 10px;
+            font-weight: bold;
+            display: none;
+        }
+        
+        .visualization-container {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 20px;
+            background-color: white;
+            min-height: 400px;
+            overflow: auto;
+        }
+        
+        .json-tree {
+            font-family: monospace;
+        }
+        
+        .json-key {
+            color: #7d3c98;
+            font-weight: bold;
+        }
+        
+        .json-string {
+            color: #2e7d32;
+        }
+        
+        .json-number {
+            color: #0288d1;
+        }
+        
+        .json-boolean {
+            color: #f57c00;
+        }
+        
+        .json-null {
+            color: #d32f2f;
+        }
+        
+        .xml-tag {
+            color: #1565c0;
+            font-weight: bold;
+        }
+        
+        .xml-attr-name {
+            color: #c62828;
+        }
+        
+        .xml-attr-value {
+            color: #2e7d32;
+        }
+        
+        .xml-text {
+            color: var(--dark);
+        }
+        
+        .ini-section {
+            color: #6a1b9a;
+            font-weight: bold;
+        }
+        
+        .ini-key {
+            color: #d84315;
+        }
+        
+        .ini-value {
+            color: #2e7d32;
+        }
+        
+        .yaml-key {
+            color: #7d3c98;
+            font-weight: bold;
+        }
+        
+        .yaml-value {
+            color: #2e7d32;
+        }
+        
+        .collapsible {
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .collapsible::before {
+            content: '▼';
+            display: inline-block;
+            margin-right: 5px;
+            transition: transform 0.3s;
+        }
+        
+        .collapsed::before {
+            transform: rotate(-90deg);
+        }
+        
+        .json-child {
+            padding-left: 20px;
+            border-left: 1px dashed #ccc;
+            margin-left: 5px;
+        }
+        
+        .collapsed + .json-child {
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            font-style: italic;
+            color: #666;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        @media (max-width: 768px) {
+            .input-container {
+                flex-direction: column;
+            }
+            
+            .controls {
+                flex-direction: row;
+                gap: 10px;
+            }
+            
+            .format-selector {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JsonVis</h1>
+            <p>Paste your data below (JSON, XML, INI, YAML, TOML) to visualize its structure</p>
+        </header>
+        
+        <main>
+            <section class="input-section">
+                <div class="input-container">
+                    <textarea id="jsonInput" class="json-input" placeholder="Paste your data here (JSON, XML, INI, YAML, TOML)..."></textarea>
+                    <div class="controls">
+                        <div class="format-selector">
+                            <button class="format-btn active" data-format="auto">Auto</button>
+                            <button class="format-btn" data-format="json">JSON</button>
+                            <button class="format-btn" data-format="xml">XML</button>
+                            <button class="format-btn" data-format="ini">INI</button>
+                            <button class="format-btn" data-format="yaml">YAML</button>
+                            <button class="format-btn" data-format="toml">TOML</button>
+                        </div>
+                        <button id="visualizeBtn" class="btn">Visualize</button>
+                        <button id="clearBtn" class="btn">Clear</button>
+                        <button id="sampleBtn" class="btn sample-btn">Load Sample</button>
+                    </div>
+                </div>
+                <div id="errorMessage" class="error-message"></div>
+            </section>
+            
+            <section class="visualization-section">
+                <div id="visualizationContainer" class="visualization-container">
+                    <div class="loading">Visualization will appear here...</div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>JsonVis - Supports JSON, XML, INI, YAML, and TOML formats</p>
+        </footer>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const jsonInput = document.getElementById('jsonInput');
+            const visualizeBtn = document.getElementById('visualizeBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const sampleBtn = document.getElementById('sampleBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const visualizationContainer = document.getElementById('visualizationContainer');
+            const formatBtns = document.querySelectorAll('.format-btn');
+            
+            let selectedFormat = 'auto';
+            
+            const sampleData = {
+                json: `{
+    "name": "Multi-Format Visualizer",
+    "version": 2.0,
+    "features": ["JSON", "XML", "INI", "YAML", "TOML"],
+    "settings": {
+        "darkMode": false,
+        "autoExpand": true
+    },
+    "count": 42,
+    "active": true,
+    "nullValue": null
+}`,
+                xml: `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <name>Multi-Format Visualizer</name>
+    <version>2.0</version>
+    <features>
+        <feature>JSON</feature>
+        <feature>XML</feature>
+        <feature>INI</feature>
+    </features>
+    <settings darkMode="false" autoExpand="true">
+        <maxDepth>10</maxDepth>
+    </settings>
+    <count>42</count>
+</config>`,
+                ini: `[Database]
+host = localhost
+port = 5432
+username = admin
+password = secret123
+
+[Application]
+name = Multi-Format Visualizer
+version = 2.0
+debug = true
+max_connections = 100
+
+[Features]
+json = enabled
+xml = enabled
+ini = enabled`,
+                yaml: `name: Multi-Format Visualizer
+version: 2.0
+features:
+  - JSON
+  - XML
+  - INI
+  - YAML
+  - TOML
+settings:
+  darkMode: false
+  autoExpand: true
+  maxDepth: 10
+count: 42
+active: true
+nullValue: null`,
+                toml: `name = "Multi-Format Visualizer"
+version = "2.0"
+
+[settings]
+darkMode = false
+autoExpand = true
+maxDepth = 10
+
+[[features]]
+type = "JSON"
+enabled = true
+
+[[features]]
+type = "XML"
+enabled = true
+
+[database]
+host = "localhost"
+port = 5432`
+            };
+            
+            formatBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    formatBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    selectedFormat = this.dataset.format;
+                });
+            });
+            
+            visualizeBtn.addEventListener('click', visualizeData);
+            clearBtn.addEventListener('click', clearAll);
+            sampleBtn.addEventListener('click', loadSample);
+            
+            function detectFormat(text) {
+                text = text.trim();
+                
+                if (text.startsWith('{') || text.startsWith('[')) return 'json';
+                if (text.startsWith('<?xml') || text.startsWith('<')) return 'xml';
+                if (text.includes('[') && text.includes(']') && text.includes('=')) return 'ini';
+                if (text.match(/^[\w-]+\s*:/m)) return 'yaml';
+                if (text.match(/^\[[\w.-]+\]/m) || text.match(/^[\w-]+\s*=\s*["']?[\w.-]+["']?/m)) {
+                    if (text.includes('[[') || text.includes('"""')) return 'toml';
+                    return 'ini';
+                }
+                
+                return 'json';
+            }
+            
+            function visualizeData() {
+                const dataString = jsonInput.value.trim();
+                if (!dataString) {
+                    showError('Please enter data to visualize');
+                    return;
+                }
+                
+                const format = selectedFormat === 'auto' ? detectFormat(dataString) : selectedFormat;
+                
+                try {
+                    let parsedData;
+                    
+                    switch(format) {
+                        case 'json':
+                            parsedData = JSON.parse(dataString);
+                            break;
+                        case 'xml':
+                            parsedData = parseXML(dataString);
+                            break;
+                        case 'ini':
+                            parsedData = parseINI(dataString);
+                            break;
+                        case 'yaml':
+                            parsedData = parseYAML(dataString);
+                            break;
+                        case 'toml':
+                            parsedData = parseTOML(dataString);
+                            break;
+                        default:
+                            throw new Error('Unsupported format');
+                    }
+                    
+                    hideError();
+                    renderData(parsedData, format);
+                } catch (error) {
+                    showError(`Invalid ${format.toUpperCase()}: ${error.message}`);
+                }
+            }
+            
+            function parseXML(xmlString) {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+                
+                if (xmlDoc.querySelector('parsererror')) {
+                    throw new Error('Invalid XML syntax');
+                }
+                
+                return xmlToObject(xmlDoc.documentElement);
+            }
+            
+            function xmlToObject(node) {
+                const obj = {};
+                
+                if (node.attributes && node.attributes.length > 0) {
+                    obj['@attributes'] = {};
+                    for (let attr of node.attributes) {
+                        obj['@attributes'][attr.name] = attr.value;
+                    }
+                }
+                
+                if (node.childNodes.length === 1 && node.childNodes[0].nodeType === 3) {
+                    const text = node.childNodes[0].nodeValue.trim();
+                    if (text) {
+                        if (Object.keys(obj).length === 0) return text;
+                        obj['#text'] = text;
+                        return obj;
+                    }
+                }
+                
+                for (let child of node.childNodes) {
+                    if (child.nodeType === 1) {
+                        const childName = child.nodeName;
+                        const childValue = xmlToObject(child);
+                        
+                        if (obj[childName]) {
+                            if (!Array.isArray(obj[childName])) {
+                                obj[childName] = [obj[childName]];
+                            }
+                            obj[childName].push(childValue);
+                        } else {
+                            obj[childName] = childValue;
+                        }
+                    }
+                }
+                
+                return obj;
+            }
+            
+            function parseINI(iniString) {
+                const lines = iniString.split('\n');
+                const result = {};
+                let currentSection = null;
+                
+                for (let line of lines) {
+                    line = line.trim();
+                    
+                    if (!line || line.startsWith(';') || line.startsWith('#')) continue;
+                    
+                    if (line.startsWith('[') && line.endsWith(']')) {
+                        currentSection = line.slice(1, -1);
+                        result[currentSection] = {};
+                    } else if (line.includes('=')) {
+                        const [key, ...valueParts] = line.split('=');
+                        const value = valueParts.join('=').trim();
+                        const parsedValue = parseValue(value);
+                        
+                        if (currentSection) {
+                            result[currentSection][key.trim()] = parsedValue;
+                        } else {
+                            result[key.trim()] = parsedValue;
+                        }
+                    }
+                }
+                
+                return result;
+            }
+            
+            function parseYAML(yamlString) {
+                const lines = yamlString.split('\n');
+                const result = {};
+                const stack = [{obj: result, indent: -1}];
+                
+                for (let line of lines) {
+                    if (!line.trim() || line.trim().startsWith('#')) continue;
+                    
+                    const indent = line.search(/\S/);
+                    const content = line.trim();
+                    
+                    while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+                        stack.pop();
+                    }
+                    
+                    if (content.startsWith('- ')) {
+                        const value = content.slice(2).trim();
+                        const parent = stack[stack.length - 1].obj;
+                        
+                        if (!Array.isArray(parent)) {
+                            const keys = Object.keys(parent);
+                            const lastKey = keys[keys.length - 1];
+                            if (!Array.isArray(parent[lastKey])) {
+                                parent[lastKey] = [];
+                            }
+                            parent[lastKey].push(parseValue(value));
+                        }
+                    } else if (content.includes(':')) {
+                        const colonIndex = content.indexOf(':');
+                        const key = content.slice(0, colonIndex).trim();
+                        const value = content.slice(colonIndex + 1).trim();
+                        
+                        const parent = stack[stack.length - 1].obj;
+                        
+                        if (value === '' || value === '[]' || value === '{}') {
+                            parent[key] = value === '[]' ? [] : {};
+                            stack.push({obj: parent[key], indent: indent});
+                        } else {
+                            parent[key] = parseValue(value);
+                        }
+                    }
+                }
+                
+                return result;
+            }
+            
+            function parseTOML(tomlString) {
+                const lines = tomlString.split('\n');
+                const result = {};
+                let currentSection = result;
+                let currentPath = [];
+                
+                for (let line of lines) {
+                    line = line.trim();
+                    
+                    if (!line || line.startsWith('#')) continue;
+                    
+                    if (line.startsWith('[[') && line.endsWith(']]')) {
+                        const arrayName = line.slice(2, -2);
+                        const parts = arrayName.split('.');
+                        
+                        let target = result;
+                        for (let i = 0; i < parts.length - 1; i++) {
+                            if (!target[parts[i]]) target[parts[i]] = {};
+                            target = target[parts[i]];
+                        }
+                        
+                        const lastPart = parts[parts.length - 1];
+                        if (!target[lastPart]) target[lastPart] = [];
+                        
+                        const newObj = {};
+                        target[lastPart].push(newObj);
+                        currentSection = newObj;
+                    } else if (line.startsWith('[') && line.endsWith(']')) {
+                        const sectionName = line.slice(1, -1);
+                        const parts = sectionName.split('.');
+                        
+                        let target = result;
+                        for (let part of parts) {
+                            if (!target[part]) target[part] = {};
+                            target = target[part];
+                        }
+                        currentSection = target;
+                    } else if (line.includes('=')) {
+                        const [key, ...valueParts] = line.split('=');
+                        const value = valueParts.join('=').trim();
+                        currentSection[key.trim()] = parseValue(value);
+                    }
+                }
+                
+                return result;
+            }
+            
+            function parseValue(value) {
+                value = value.trim();
+                
+                if (value === 'true') return true;
+                if (value === 'false') return false;
+                if (value === 'null' || value === 'nil' || value === '~') return null;
+                
+                if (value.startsWith('"') && value.endsWith('"')) {
+                    return value.slice(1, -1);
+                }
+                if (value.startsWith("'") && value.endsWith("'")) {
+                    return value.slice(1, -1);
+                }
+                
+                if (!isNaN(value) && value !== '') {
+                    return parseFloat(value);
+                }
+                
+                return value;
+            }
+            
+            function renderData(data, format) {
+                visualizationContainer.innerHTML = '';
+                const tree = document.createElement('div');
+                tree.className = 'json-tree';
+                
+                const content = createDataTree(data, format);
+                tree.appendChild(content);
+                visualizationContainer.appendChild(tree);
+                
+                addCollapsibleEvents();
+            }
+            
+            function createDataTree(data, format, key = null) {
+                const container = document.createElement('div');
+                
+                if (key !== null) {
+                    const keySpan = document.createElement('span');
+                    keySpan.className = format === 'xml' ? 'xml-tag' : 
+                                       format === 'ini' ? 'ini-key' : 
+                                       format === 'yaml' ? 'yaml-key' : 'json-key';
+                    keySpan.textContent = format === 'xml' ? `${key}` : `"${key}": `;
+                    container.appendChild(keySpan);
+                }
+                
+                if (data === null) {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'json-null';
+                    valueSpan.textContent = 'null';
+                    container.appendChild(valueSpan);
+                } 
+                else if (typeof data === 'object' && !Array.isArray(data)) {
+                    const isCollapsible = Object.keys(data).length > 0;
+                    const openBrace = document.createElement('span');
+                    openBrace.textContent = '{';
+                    if (isCollapsible) {
+                        openBrace.className = 'collapsible';
+                    }
+                    container.appendChild(openBrace);
+                    
+                    if (isCollapsible) {
+                        const childContainer = document.createElement('div');
+                        childContainer.className = 'json-child';
+                        
+                        const keys = Object.keys(data);
+                        keys.forEach((childKey, index) => {
+                            const childElement = createDataTree(data[childKey], format, childKey);
+                            childContainer.appendChild(childElement);
+                            
+                            if (index < keys.length - 1) {
+                                const comma = document.createElement('span');
+                                comma.textContent = ',';
+                                childElement.appendChild(comma);
+                            }
+                        });
+                        
+                        container.appendChild(childContainer);
+                    }
+                    
+                    const closeBrace = document.createElement('span');
+                    closeBrace.textContent = '}';
+                    container.appendChild(closeBrace);
+                } 
+                else if (Array.isArray(data)) {
+                    const isCollapsible = data.length > 0;
+                    const openBracket = document.createElement('span');
+                    openBracket.textContent = '[';
+                    if (isCollapsible) {
+                        openBracket.className = 'collapsible';
+                    }
+                    container.appendChild(openBracket);
+                    
+                    if (isCollapsible) {
+                        const childContainer = document.createElement('div');
+                        childContainer.className = 'json-child';
+                        
+                        data.forEach((item, index) => {
+                            const childElement = createDataTree(item, format);
+                            childContainer.appendChild(childElement);
+                            
+                            if (index < data.length - 1) {
+                                const comma = document.createElement('span');
+                                comma.textContent = ',';
+                                childElement.appendChild(comma);
+                            }
+                        });
+                        
+                        container.appendChild(childContainer);
+                    }
+                    
+                    const closeBracket = document.createElement('span');
+                    closeBracket.textContent = ']';
+                    container.appendChild(closeBracket);
+                } 
+                else if (typeof data === 'string') {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = format === 'ini' ? 'ini-value' : 
+                                         format === 'yaml' ? 'yaml-value' : 'json-string';
+                    valueSpan.textContent = `"${data}"`;
+                    container.appendChild(valueSpan);
+                } 
+                else if (typeof data === 'number') {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'json-number';
+                    valueSpan.textContent = data;
+                    container.appendChild(valueSpan);
+                } 
+                else if (typeof data === 'boolean') {
+                    const valueSpan = document.createElement('span');
+                    valueSpan.className = 'json-boolean';
+                    valueSpan.textContent = data;
+                    container.appendChild(valueSpan);
+                }
+                
+                return container;
+            }
+            
+            function addCollapsibleEvents() {
+                const collapsibles = document.querySelectorAll('.collapsible');
+                collapsibles.forEach(element => {
+                    element.addEventListener('click', function() {
+                        this.classList.toggle('collapsed');
+                    });
+                });
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+            
+            function hideError() {
+                errorMessage.style.display = 'none';
+            }
+            
+            function clearAll() {
+                jsonInput.value = '';
+                visualizationContainer.innerHTML = '<div class="loading">Visualization will appear here...</div>';
+                hideError();
+            }
+            
+            function loadSample() {
+                const format = selectedFormat === 'auto' ? 'json' : selectedFormat;
+                jsonInput.value = sampleData[format];
+                visualizeData();
+            }
+        });
+    </script>
+</body>
+</html>
